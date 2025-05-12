@@ -5,23 +5,35 @@ import Registry.Entry;
 import Registry.Registry;
 import RequestReply.Requestor;
 
-public class InfoClient 
+
+interface InfoClientService
 {
-    public static void main(String[] args) 
+    String getTemp();
+    String getRoad();
+}
+
+class InfoClientProxy implements InfoClientService
+{
+    Address dest;
+    Address dispAddress;
+    Message msg;
+    Requestor r;
+    Marshaller m;
+
+    public InfoClientProxy() 
     {
         new Configuration();
+        dispAddress=Registry.instance().get("Dispacher");
 
-        Address dest=Registry.instance().get("Dispacher");
+        msg= new Message("Client","InfoServer");
 
-        Message msg= new Message("Client","InfoServer");
-
-		Requestor r = new Requestor("Client");
+		r = new Requestor("Client");
 		
-		Marshaller m = new Marshaller();
-			
-		byte[] bytes = m.marshal(msg);
+		m = new Marshaller();
 
-		bytes = r.deliver_and_wait_feedback(dest, bytes);
+        byte[] bytes = m.marshal(msg);
+
+		bytes = r.deliver_and_wait_feedback(dispAddress, bytes);
 		
 		Message answer = m.unmarshal(bytes);
 
@@ -32,31 +44,79 @@ public class InfoClient
         String address = answer.data.substring(0,separator);
         int port =Integer.valueOf(answer.data.substring(separator + 1));
 
-        //System.out.println(address + " op " + port);
-
         dest = new Entry(address, port);
+    }
 
+    public String getTemp()
+    {
         msg = new Message("Client", "Temp Arad");
 
-        bytes = m.marshal(msg);
+        byte[] bytes = m.marshal(msg);
 
         bytes = r.deliver_and_wait_feedback(dest, bytes);
 		
-		answer = m.unmarshal(bytes);
+		Message answer = m.unmarshal(bytes);
 
-		System.out.println("Client received message "+answer.data+" from "+answer.sender);
+		String result = ("Client received message "+answer.data+" from "+answer.sender);
 
+        System.out.println(result);
+
+        return result;
+    }
+
+    public String getRoad()
+    {
         msg = new Message("Client", "Road 123");
 
-        bytes = m.marshal(msg);
+        byte[] bytes = m.marshal(msg);
 
         bytes = r.deliver_and_wait_feedback(dest, bytes);
 		
-		answer = m.unmarshal(bytes);
+		Message answer = m.unmarshal(bytes);
 
-		System.out.println("Client received message "+answer.data+" from "+answer.sender);
+		String result = ("Client received message "+answer.data+" from "+answer.sender);
 
+        System.out.println(result);
+
+        return result;
+
+    }
+}
+
+public class InfoClient implements InfoClientService
+{
+    InfoClientProxy proxy;
+
+    public InfoClient(InfoClientProxy proxy) 
+    {
+        this.proxy = proxy;
+    }
+
+    
+
+    public InfoClient() {
+    }
+
+    @Override
+    public String getRoad() 
+    {
         
+        return proxy.getRoad();
+    }
+
+    @Override
+    public String getTemp() 
+    {
+        return proxy.getTemp();
+    }
+
+    public static void main(String[] args) 
+    {
+        InfoClientProxy proxy = new InfoClientProxy();
+
+        InfoClient client = new InfoClient(proxy);
+
+        client.getRoad();
         
     }
 }

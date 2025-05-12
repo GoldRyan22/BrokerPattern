@@ -6,13 +6,23 @@ import RequestReply.Replyer;
 import java.util.Hashtable;
 
 
-class InfoMessageServer extends MessageServer
+class InfoProxy extends MessageServer implements InfoServiceInterface
     {
-        InfoServerData infoData;
+        InfoServerOrig infoData;
 
-        public InfoMessageServer(InfoServerData infoData ) 
+        public InfoProxy(InfoServerOrig infoData ) 
         {
             this.infoData = infoData;
+        }
+
+        public String getRoadInfo(Integer roadID)
+        {
+            return this.infoData.getRoadInfo(roadID);
+        }
+
+        public String getCityTemp(String cityName)
+        {
+            return this.infoData.getCityTemp(cityName);
         }
 
         @Override
@@ -24,7 +34,7 @@ class InfoMessageServer extends MessageServer
             {
                 String find = msg.data.substring(5);
 
-                String result ="" + infoData.cityTemp.get(find);
+                String result ="Temp in " + find + " is " + infoData.cityTemp.get(find);
 
                 answer = new Message("InfoServer", result);
             }
@@ -35,7 +45,7 @@ class InfoMessageServer extends MessageServer
                 try 
                 {
                     String ifFound = infoData.roadInfo.get(Integer.valueOf(find));
-                    String result = "" + find + "is" + ifFound;
+                    String result = "on road "  + find + " is " + ifFound;
                     answer = new Message("InfoServer", result);
                     
                 } catch (NumberFormatException e) 
@@ -47,9 +57,15 @@ class InfoMessageServer extends MessageServer
         }
     }
 
-class InfoServerData
+class InfoServerOrig implements InfoServiceInterface
 {
     Address myAdd = new Entry("127.0.0.1", 1112);
+
+    public InfoServerOrig() 
+    {
+       this.addCityTemp("Arad", 15);
+       this.addRoadInfo(123, "an accident");
+    }
 
     Hashtable<Integer, String> roadInfo = new Hashtable<>();
     Hashtable<String, Integer> cityTemp = new Hashtable<>();
@@ -64,20 +80,19 @@ class InfoServerData
         this.cityTemp.put(city, temp);
     }
 
-    String getRoadInfo(Integer roadID)
+    public String getRoadInfo(Integer roadID)
     {
         String result = "on road " + roadID + "is " + this.roadInfo.get(roadID);
 
         return result;
     }
 
-    String getCityTemp(String cityName)
+    public String getCityTemp(String cityName)
     {
         String result = "" + cityName + this.cityTemp.get(cityName);
 
         return result;
-    }
-    
+    }  
 }
 
 public class InfoServer 
@@ -86,16 +101,13 @@ public class InfoServer
     {
         new Configuration();
 
-       InfoServerData InfoServ = new InfoServerData();
+        InfoServerOrig InfoServ = new InfoServerOrig();
 
-       InfoServ.addCityTemp("Arad", 15);
-       InfoServ.addRoadInfo(123, "an accident");
+        ByteStreamTransformer transformer = new ServerTransformer(new InfoProxy(InfoServ));
 
-       ByteStreamTransformer transformer = new ServerTransformer(new InfoMessageServer(InfoServ));
-
-       Address myAddr = Registry.instance().get("InfoServer");
+        Address myAddr = Registry.instance().get("InfoServer");
 		
-		Replyer r = new Replyer("InfoServer", myAddr);
+	    Replyer r = new Replyer("InfoServer", myAddr);
 
 		while (true) {
 		  r.receive_transform_and_send_feedback(transformer);
